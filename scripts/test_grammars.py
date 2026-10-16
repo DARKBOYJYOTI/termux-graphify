@@ -54,6 +54,17 @@ def wheel_module(whl_name: str) -> str:
 
 def test_module(modname: str) -> str:
     """Devuelve None si OK, o el mensaje de error."""
+    if modname == "graphifyy":
+        # distribution name != import name: the package imports as `graphify`
+        importlib.import_module("graphify")
+        try:
+            from importlib.metadata import version as _dist_version
+            ver = _dist_version("graphifyy")
+        except Exception as e:
+            return f"graphifyy dist version unreadable: {e}"
+        if "+termux" not in str(ver):
+            return f"graphifyy wheel is not a +termux build (version={ver!r})"
+        return None
     mod = importlib.import_module(modname)
     if modname == "tree_sitter":
         return None  # el core es el que provee Language/Parser
