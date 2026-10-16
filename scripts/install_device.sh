@@ -74,3 +74,9 @@ PY
 echo
 echo "Listo. Usa: $VENV/bin/graphify build <ruta>"
 echo "Para registrar el skill en Hermes: $VENV/bin/graphify install"
+echo
+echo "== [5/5] skill bootstrap order (venv first; best-effort, never fatal) =="
+# Upstream skill files prefer `uv tool run`, which cannot build Android
+# grammar sdists — reorder to venv-first wherever local copies exist.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+python3 "$SCRIPT_DIR/patch_skill_bootstrap.py" 2>&1 || echo "WARN: skill bootstrap patch skipped"
