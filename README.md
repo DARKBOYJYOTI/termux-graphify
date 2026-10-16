@@ -2,73 +2,96 @@
 
 [![Build wheels](https://github.com/DARKBOYJYOTI/termux-graphify/actions/workflows/build-wheels.yml/badge.svg?branch=main)](https://github.com/DARKBOYJYOTI/termux-graphify/actions/workflows/build-wheels.yml)
 [![Termux: AArch64](https://img.shields.io/badge/Termux-AArch64-1f6feb?style=flat-square)](https://termux.dev)
+[![Python 3.14](https://img.shields.io/badge/Python-3.14-3fb950?style=flat-square)](https://www.python.org)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-9e6a03?style=flat-square)](https://github.com/Graphify-Labs/graphify/blob/main/LICENSE)
 
-[Graphify](https://github.com/Graphify-Labs/graphify) ported for **Termux on
-Android (AArch64)** — turn any codebase into a queryable knowledge graph
-(context compression for AI assistants) using local tree-sitter AST, no LLM
-needed for the code part.
+Turn any codebase on your Android phone into a **queryable knowledge graph**
+— god nodes, communities, call flows, cross-file relationships. Built for
+[Graphify](https://github.com/Graphify-Labs/graphify) on **Termux (AArch64)**
+with zero on-device compiling: prebuilt wheels, one-line install, ready for
+Claude Code, OpenCode, Codex, Gemini CLI, and every AI coding assistant.
 
-PyPI ships no Android wheels, so this repo builds them in CI (real Termux
-container on native arm64) and installs them on-device with zero compiling.
+> PyPI ships no Android wheels — that gap is exactly what this repository
+> closes. Local tree-sitter AST, no LLM needed for the code part.
 
-## Install
+## Install in one line
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DARKBOYJYOTI/termux-graphify/main/install.sh | sh
 ```
 
-That installs system deps (`python`, `python-numpy`), downloads the Android
-wheels from this repo's latest release, creates `~/graphify-venv`, installs
-everything, and smoke-tests (`graphify --version` + grammar list). Options:
+What happens: system deps (`python`, `python-numpy`) → latest release
+wheels → isolated `~/graphify-venv` → smoke test (`graphify --version` +
+grammar list). Options:
 
 ```bash
-curl -fsSL .../install.sh | sh -s -- --local /path/to/wheels  # local wheels
+curl -fsSL .../install.sh | sh -s -- --local /path/to/wheels  # offline wheels
 curl -fsSL .../install.sh | sh -s -- --tag <release-tag>      # pinned release
 ```
 
-Then point your agent at it — e.g. for OpenCode, `graphify query "..."`,
-`graphify path "A" "B"`, `graphify explain "..."`. Full agent guide:
-[AGENTS.md](./AGENTS.md).
+Then ask your codebase anything:
 
-## How it works
+```bash
+graphify query "what connects auth to the database?"
+graphify path "login" "payment"
+graphify explain "session manager"
+```
 
-- `tree-sitter` core + `rapidfuzz` are compiled normally (`pip wheel`).
-- Each grammar is compiled as a **pure `.so`** with clang and packed into a
-  **wheel shim** exposing exactly the API graphify expects (verified by a
-  runtime test per grammar — failures never reach a release).
-- The device script installs wheels `--no-deps` into a venv with
-  `--system-site-packages` (native numpy/networkx from Termux packages).
+## Why this exists
 
-Details: [graphyfy-port.md](./graphyfy-port.md), [AGENTS.md](./AGENTS.md).
+- **No compiler on your phone.** 25+ grammars and the core are compiled in
+  CI inside a real Termux container on native arm64 — the device only
+  installs.
+- **It actually loads.** PyPI's abi3 grammar bindings break on Android
+  (hidden symbols, missing headers). Ours are pure `.so` builds verified by
+  a runtime test each — failures never ship.
+- **Local-first.** Code parsing is 100% on-device tree-sitter. Semantic
+  extraction can additionally route through free local CLIs (Hermes,
+  OpenCode, Codex) with no API key via the Termux port patch.
 
-## Build wheels (CI)
+## What's inside a release
 
-`.github/workflows/build-wheels.yml` builds inside a real Termux container
-on native arm64 and publishes the `.whl` set on `v*` tags (or manual runs).
-Versions resolve against graphify's supported ranges
-(`scripts/resolve_versions.py`).
+- `tree-sitter` core + `rapidfuzz` (compiled normally)
+- 25 grammar shims exposing exactly the API graphify expects
+- `graphifyy+termux1` wheel (upstream + local-CLI backends patch)
+- Every wheel runtime-tested (import → `Language()` ABI check → snippet parse)
 
 ## Repository layout
 
 ```text
-install.sh                 # one-line device installer (release wheels, no compiling)
-scripts/install_device.sh  # device installer core (release, tag, or local wheels)
-scripts/build_wheels.sh    # CI/local wheel build
+install.sh                 # one-line device installer (release/tag/local)
+scripts/install_device.sh  # installer core: deps, venv, wheels, smoke test
+scripts/build_wheels.sh    # wheel build (CI and local reproduction)
 scripts/resolve_versions.py# version resolution against graphify's ranges
 scripts/test_grammars.py   # per-grammar runtime verification
 scripts/grammar_manifest.txt
-graphify-pyproject.toml    # graphify build metadata
+graphify-pyproject.toml    # upstream build metadata reference
 ```
+
+## Build wheels yourself
+
+`.github/workflows/build-wheels.yml` builds everything in CI (native arm64,
+up to 4 h). Locally, the same script runs inside the Termux container —
+see [AGENTS.md](./AGENTS.md).
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `dlopen failed` on a grammar | Rebuild that grammar as pure `.so` — see [AGENTS.md](./AGENTS.md) |
+| `Language()` ABI mismatch | Core/grammar drift — re-resolve versions, never widen ranges blindly |
+| pip rejects a wheel tag | Shims must stay `py3-none-any`; content is proven by the runtime test |
+| No release found | Publish via CI first, or install with `--local` wheels |
 
 ## Contributing
 
 Single branch `main`. Test grammar changes with `scripts/test_grammars.py`
-before pushing. Never commit built wheels (`*.whl` are ignored) or
-credentials — see [SECURITY.md](./SECURITY.md).
+before pushing. Never commit built wheels, credentials, or device paths —
+see [SECURITY.md](./SECURITY.md).
 
 ## Credits
 
-- [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) — the original project.
+- [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify) — the original project (Apache-2.0).
 - [Leonisaurov/graphify-termux](https://github.com/Leonisaurov/graphify-termux) — the Termux port this builds on.
 
 ## Security
