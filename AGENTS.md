@@ -117,6 +117,7 @@ On-device acceptance for every release (isolated test venv — never the live
 | `Language()` ABI mismatch | Core/grammar ABI drift | Pin core per section 3; re-resolve versions |
 | pip rejects wheel platform tag | Non-Android tag on Termux pip | Shims stay `py3-none-any`; content verified by runtime test |
 | Install finds no release | No published tag yet | Use `--local`, or publish via CI first |
+| Skill bootstrap tries building grammars from source | Upstream skill prefers `uv tool run`, and uv cannot build Android grammar sdists; triggers only when uv exists but `graphify` is not on PATH | Keep `~/.local/bin` on PATH (standard install does); the working venv is `~/graphify-venv` — verify with `<venv>/bin/python -c "import graphify"` |
 | Patch hunk FAILED on bump | Upstream refactored the patched function | Hand-adapt per section 4; never force-apply |
 | sdist missing headers | Incomplete sdist (e.g. no `common/scanner.h`) | Build from the GitHub tarball per section 3 |
 
