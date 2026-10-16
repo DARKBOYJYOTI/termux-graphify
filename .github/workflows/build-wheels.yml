@@ -1,0 +1,100 @@
+# GitHub Actions workflow: compila wheels (tree-sitter core + grammars +
+# rapidfuzz) para Termux/Android dentro de un contenedor Termux real, en un
+# runner arm64 nativo. Los wheels llevan tag de plataforma android_arm64_v8a
+# y se instalan directamente en el dispositivo (sin recompilar nada).
+#
+# Requisitos en el repo:
+#   * scripts/grammar_manifest.txt  — lista paquete==version
+#   * scripts/build_wheels.sh       — corre DENTRO del contenedor
+#   * scripts/test_grammars.py      — test de runtime (ABI check)
+#
+# Trigger: manual dispatch (artefacto, release opcional via input) o tag v*
+# (release automatico).
+
+name: Termux wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: Create a GitHub Release with the wheels (tag = ci-<run-id>)
+        type: boolean
+        required: false
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write # create the GitHub Release for tag pushes
+
+concurrency:
+  group: termux-wheels-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Termux wheels (aarch64)
+    # Public arm64 runner — native architecture, no emulation.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 240
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Make checkout writable by container user
+        # termux-docker runs as uid 1000 (Android `system`); the checkout
+        # is owned by the runner (uid 1001).
+        run: sudo chown -R 1000:1000 "$GITHUB_WORKSPACE"
+
+      - name: Build wheels inside Termux container (arm64)
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            termux/termux-docker:latest \
+            bash /workspace/scripts/build_wheels.sh
+
+      - name: Restore checkout ownership
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+
+      - name: Upload wheels artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: termux-wheels
+          path: wheels/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload failed wheels (report, if any)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: termux-wheels-failed
+          path: |
+            failed/*.whl
+            failed/*.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.create_release)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download wheels artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: termux-wheels
+          path: release-assets
+
+      - name: Create release
+        uses: softprops/action-gh-release@d1e66170d32c9ec7bbcb7fae044d3d686ce304d3 # v3.0.2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('ci-{0}', github.run_id) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('Termux wheels CI build {0}', github.run_id) }}
+          files: release-assets/*.whl
+          generate_release_notes: startsWith(github.ref, 'refs/tags/v')
+          fail_on_unmatched_files: true

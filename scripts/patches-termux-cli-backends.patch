@@ -1,0 +1,521 @@
+diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphify/__main__.py graphifyy-0.9.44/graphify/__main__.py
+--- graphifyy-0.9.44-orig/graphify/__main__.py	2026-08-15 15:16:48.953677000 -0600
++++ graphifyy-0.9.44/graphify/__main__.py	2026-08-16 19:31:41.216548061 -0600
+@@ -593,7 +593,7 @@
+         print("    --top-k-edges N         per-symbol outbound edges in inspector (default 12)")
+         print("    --label NAME            project label in header")
+         print("  extract <path>          headless full extraction (AST + semantic LLM) for CI/scripts")
+-        print("    --backend B             gemini|kimi|claude|openai|deepseek|ollama (default: whichever API key is set)")
++        print("    --backend B             gemini|kimi|claude|openai|deepseek|ollama|hermes|opencode|codex (default: whichever API key is set, else first installed CLI)")
+         print("                            openai also reaches self-hosted OpenAI-compatible servers (llama.cpp,")
+         print("                            vLLM, LM Studio): set OPENAI_BASE_URL (e.g. http://localhost:8080/v1)")
+         print("                            and OPENAI_MODEL to the model name your server serves")
+diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphify/cli.py graphifyy-0.9.44/graphify/cli.py
+--- graphifyy-0.9.44-orig/graphify/cli.py	2026-08-15 15:16:48.955252000 -0600
++++ graphifyy-0.9.44/graphify/cli.py	2026-08-16 19:31:23.204548060 -0600
+@@ -2819,7 +2819,7 @@
+         # has an API key set.
+         if len(sys.argv) < 3:
+             print(
+-                "Usage: graphify extract <path> [--backend gemini|kimi|claude|openai|deepseek|ollama] "
++                "Usage: graphify extract <path> [--backend gemini|kimi|claude|openai|deepseek|ollama|hermes|opencode|codex] "
+                 "[--model M] [--mode deep] [--out DIR|--output DIR] [--google-workspace] [--no-cluster] "
+                 "[--no-gitignore] [--code-only] "
+                 "[--max-workers N] [--token-budget N] [--max-concurrency N] "
+@@ -3293,6 +3293,36 @@
+                             file=sys.stderr,
+                         )
+                         sys.exit(1)
++                elif backend == "hermes":
++                    import shutil as _shutil
++                    allow_no_key = _shutil.which("hermes") is not None
++                    if not allow_no_key:
++                        print(
++                            "error: backend 'hermes' requires the `hermes` CLI on $PATH "
++                            "(install Hermes Agent via `hermes setup`).",
++                            file=sys.stderr,
++                        )
++                        sys.exit(1)
++                elif backend == "opencode":
++                    import shutil as _shutil
++                    allow_no_key = _shutil.which("opencode") is not None
++                    if not allow_no_key:
++                        print(
++                            "error: backend 'opencode' requires the `opencode` CLI on $PATH "
++                            "(install OpenCode via `npm i -g opencode-ai` and `opencode auth login`).",
++                            file=sys.stderr,
++                        )
++                        sys.exit(1)
++                elif backend == "codex":
++                    import shutil as _shutil
++                    allow_no_key = _shutil.which("codex") is not None
++                    if not allow_no_key:
++                        print(
++                            "error: backend 'codex' requires the `codex` CLI on $PATH "
++                            "(install via `npm i -g @openai/codex` and log in).",
++                            file=sys.stderr,
++                        )
++                        sys.exit(1)
+                 if not allow_no_key:
+                     print(
+                         f"error: backend '{backend}' requires {_format_backend_env_keys(backend)} to be set.",
+diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphify/llm.py graphifyy-0.9.44/graphify/llm.py
+--- graphifyy-0.9.44-orig/graphify/llm.py	2026-08-15 15:16:48.962252000 -0600
++++ graphifyy-0.9.44/graphify/llm.py	2026-08-16 19:30:05.432548055 -0600
+@@ -215,6 +215,38 @@
+         # CLI's Read tool rather than as inline base64 (see `_call_claude_cli`).
+         "vision": True,
+     },
++    "hermes": {
++        # Routes through the locally-installed `hermes` CLI (Hermes Agent) in
++        # one-shot headless mode (`hermes -z "prompt"`). Authenticates via the
++        # user's existing Hermes provider config — typically the FREE tier
++        # (opencode-go/deepseek-v4-flash), so semantic extraction costs nothing.
++        "default_model": "",  # empty -> let hermes use its configured default
++        "pricing": {"input": 0.0, "output": 0.0},
++        "temperature": None,
++        "max_tokens": 16384,
++        "vision": False,  # CLI text path; image refs degrade to text nodes
++    },
++    "opencode": {
++        # Routes through the locally-installed `opencode` CLI in headless mode
++        # (`opencode run --format json`). Defaults to the FREE opencode-go tier
++        # (deepseek-v4-flash) — set OPENCODE_MODEL to override.
++        "default_model": os.environ.get("OPENCODE_MODEL", "opencode-go/deepseek-v4-flash"),
++        "pricing": {"input": 0.0, "output": 0.0},
++        "temperature": None,
++        "max_tokens": 16384,
++        "vision": False,
++    },
++    "codex": {
++        # Routes through the locally-installed `codex` CLI in headless mode
++        # (`codex exec`). Default model = codex's own configured default
++        # (works with a ChatGPT account; codex-mini is rejected with 400).
++        # Set CODEX_MODEL or GRAPHIFY_CODEX_CLI_MODEL to override.
++        "default_model": "",
++        "pricing": {"input": 0.0, "output": 0.0},
++        "temperature": None,
++        "max_tokens": 16384,
++        "vision": False,
++    },
+ }
+ 
+ 
+@@ -1132,6 +1164,8 @@
+ 
+ def _format_backend_env_keys(backend: str) -> str:
+     """Return user-facing accepted API-key variable names."""
++    if backend in ("claude-cli", "hermes", "opencode", "codex"):
++        return f"the `{backend}` CLI on $PATH"
+     keys = _backend_env_keys(backend)
+     return " or ".join(keys) if keys else "AWS_PROFILE or AWS_REGION"
+ 
+@@ -1613,6 +1647,224 @@
+     return result
+ 
+ 
++# ── CLI-agent backends: hermes / opencode / codex (headless, free tier) ───────
++# These mirror the claude-cli pattern: shell out to a locally-installed coding
++# agent CLI in one-shot headless mode and parse its stdout for the JSON
++# fragment. No API key needed — auth comes from each CLI's own config.
++# Priority (all free tiers):
++#   hermes   -> `hermes -z "<prompt>"`  (uses Hermes' configured free model)
++#   opencode -> `opencode run "<prompt>" --format json` (opencode-go/deepseek-v4-flash)
++#   codex    -> `codex exec "<prompt>"` (codex-mini; needs a git repo cwd)
++
++
++def _cli_extraction_message(user_message: str, *, deep_mode: bool = False) -> str:
++    """Build the combined system+user message for the CLI-agent backends.
++
++    Same delivery-channel lesson as claude-cli (#2076): put the full schema and
++    an explicit imperative in the USER turn (the CLIs are coding agents and
++    would otherwise answer conversationally about the file dump instead of
++    emitting the JSON object).
++    """
++    return (
++        _extraction_system(deep=deep_mode)
++        + "\n\n---\n"
++        + "Now extract the knowledge graph from the following source file(s) "
++        + "and output ONLY the JSON object described above. No prose, no "
++        + "preamble, no markdown fences.\n\n"
++        + user_message
++    )
++
++
++def _cli_result_from_text(raw_content: str, *, model: str) -> dict:
++    """Turn a CLI's plain-text stdout into a graphify result dict.
++
++    Used by hermes/codex, which print the model's answer as plain text.
++    """
++    result = _parse_llm_json(raw_content or "{}")
++    result["input_tokens"] = 0
++    result["output_tokens"] = 0
++    result["model"] = model
++    result["finish_reason"] = "stop"
++    if _response_is_hollow(raw_content, result) and result["finish_reason"] != "length":
++        print(
++            "[graphify] CLI backend returned a hollow response; treating as "
++            "truncation so adaptive retry can bisect the chunk.",
++            file=sys.stderr,
++        )
++        result["finish_reason"] = "length"
++    return result
++
++
++def _opencode_parse_events(stdout: str) -> tuple[str, int, int]:
++    """Extract text + token usage from `opencode run --format json` NDJSON.
++
++    opencode emits one JSON object per line: step_start / text / step_finish /
++    reasoning events. We collect the text of every ``{"type":"text"}`` event
++    (the model's actual answer; reasoning events are separate) and the
++    input/output token counts from the final step_finish event.
++    """
++    texts: list[str] = []
++    inp = out = 0
++    for line in stdout.splitlines():
++        line = line.strip()
++        if not line.startswith("{"):
++            continue
++        try:
++            ev = json.loads(line)
++        except json.JSONDecodeError:
++            continue
++        if not isinstance(ev, dict):
++            continue
++        if ev.get("type") == "text":
++            part = ev.get("part") or {}
++            if isinstance(part, dict):
++                txt = part.get("text")
++                if isinstance(txt, str):
++                    texts.append(txt)
++        elif ev.get("type") == "step_finish":
++            part = ev.get("part") or {}
++            tokens = part.get("tokens") if isinstance(part, dict) else None
++            if isinstance(tokens, dict):
++                inp = int(tokens.get("input", 0) or 0)
++                out = int(tokens.get("output", 0) or 0)
++    return "\n".join(texts).strip(), inp, out
++
++
++def _call_hermes_cli(user_message: str, max_tokens: int = 8192, *, deep_mode: bool = False, images: list[_ImageRef] | None = None) -> dict:
++    """Call Hermes Agent CLI in one-shot headless mode (`hermes -z`).
++
++    Uses the user's existing Hermes provider config — the default model is
++    typically the free opencode-go/deepseek-v4-flash tier, so no API key and
++    no cost. GRAPHIFY_HERMES_CLI_MODEL overrides the model.
++    """
++    import shutil
++    import subprocess
++
++    if shutil.which("hermes") is None:
++        raise RuntimeError("hermes CLI not found on $PATH. Install Hermes Agent (hermes setup).")
++    combined = _cli_extraction_message(user_message, deep_mode=deep_mode)
++    cli_args = ["hermes", "-z", combined]
++    cli_model = os.environ.get("GRAPHIFY_HERMES_CLI_MODEL", "").strip()
++    if cli_model:
++        cli_args.extend(["-m", cli_model])
++    proc = subprocess.run(
++        cli_args,
++        capture_output=True,
++        text=True,
++        encoding="utf-8",
++        errors="replace",
++        timeout=_resolve_api_timeout(),
++        check=False,
++        **_no_window_kwargs(),
++    )
++    if proc.returncode != 0:
++        detail = proc.stderr.strip() or proc.stdout.strip() or "(no output)"
++        raise RuntimeError(f"hermes -z exited {proc.returncode}: {detail[:500]}")
++    return _cli_result_from_text(proc.stdout, model=cli_model or "hermes-default")
++
++
++def _call_opencode_cli(user_message: str, max_tokens: int = 8192, *, deep_mode: bool = False, images: list[_ImageRef] | None = None) -> dict:
++    """Call OpenCode CLI in headless mode (`opencode run --format json`).
++
++    Default model is the free opencode-go/deepseek-v4-flash tier; OPENCODE_MODEL
++    or GRAPHIFY_OPENCODE_CLI_MODEL overrides it. `--pure` skips external plugins
++    so the run is deterministic.
++    """
++    import shutil
++    import subprocess
++
++    if shutil.which("opencode") is None:
++        raise RuntimeError("opencode CLI not found on $PATH. Install OpenCode (opencode auth login).")
++    combined = _cli_extraction_message(user_message, deep_mode=deep_mode)
++    cli_model = (
++        os.environ.get("GRAPHIFY_OPENCODE_CLI_MODEL", "").strip()
++        or os.environ.get("OPENCODE_MODEL", "").strip()
++        or "opencode-go/deepseek-v4-flash"
++    )
++    cli_args = ["opencode", "run", "--pure", "--format", "json", "--model", cli_model, combined]
++    proc = subprocess.run(
++        cli_args,
++        capture_output=True,
++        text=True,
++        encoding="utf-8",
++        errors="replace",
++        timeout=_resolve_api_timeout(),
++        check=False,
++        **_no_window_kwargs(),
++    )
++    if proc.returncode != 0:
++        detail = proc.stderr.strip() or proc.stdout.strip() or "(no output)"
++        raise RuntimeError(f"opencode run exited {proc.returncode}: {detail[:500]}")
++    raw_content, inp, out = _opencode_parse_events(proc.stdout)
++    result = _parse_llm_json(raw_content or "{}")
++    result["input_tokens"] = inp
++    result["output_tokens"] = out
++    result["model"] = cli_model
++    result["finish_reason"] = "stop"
++    if _response_is_hollow(raw_content, result):
++        print(
++            "[graphify] opencode returned a hollow response; treating as "
++            "truncation so adaptive retry can bisect the chunk.",
++            file=sys.stderr,
++        )
++        result["finish_reason"] = "length"
++    return result
++
++
++def _call_codex_cli(user_message: str, max_tokens: int = 8192, *, deep_mode: bool = False, images: list[_ImageRef] | None = None) -> dict:
++    """Call OpenAI Codex CLI in headless mode (`codex exec`).
++
++    Default model is the free codex-mini tier; CODEX_MODEL or
++    GRAPHIFY_CODEX_CLI_MODEL overrides it. Codex refuses to run outside a git
++    repo, so when the CWD is not one we init a throwaway repo in a temp dir and
++    run there (the prompt carries all file content inline, so cwd does not
++    matter for the model).
++    """
++    import shutil
++    import subprocess
++    import tempfile
++
++    if shutil.which("codex") is None:
++        raise RuntimeError("codex CLI not found on $PATH. Install Codex (npm i -g @openai/codex).")
++    combined = _cli_extraction_message(user_message, deep_mode=deep_mode)
++    cli_model = (
++        os.environ.get("GRAPHIFY_CODEX_CLI_MODEL", "").strip()
++        or os.environ.get("CODEX_MODEL", "").strip()
++    )
++    cli_args = ["codex", "exec", "--sandbox", "danger-full-access"]
++    if cli_model:
++        cli_args.extend(["-m", cli_model])
++    cli_args.append(combined)
++    # Codex requires a git repo; if the CWD is not one, run from a temp repo.
++    cwd = None
++    import subprocess as _sp
++    git_ok = _sp.run(["git", "rev-parse", "--is-inside-work-tree"], capture_output=True, text=True).returncode == 0
++    if not git_ok:
++        tmp = tempfile.mkdtemp(prefix="graphify-codex-")
++        _sp.run(["git", "init", "-q"], cwd=tmp, capture_output=True)
++        cwd = tmp
++    try:
++        proc = subprocess.run(
++            cli_args,
++            capture_output=True,
++            text=True,
++            encoding="utf-8",
++            errors="replace",
++            timeout=_resolve_api_timeout(),
++            check=False,
++            cwd=cwd,
++            **_no_window_kwargs(),
++        )
++    finally:
++        if cwd is not None:
++            import shutil as _sh
++            _sh.rmtree(cwd, ignore_errors=True)
++    if proc.returncode != 0:
++        detail = proc.stderr.strip() or proc.stdout.strip() or "(no output)"
++        raise RuntimeError(f"codex exec exited {proc.returncode}: {detail[:500]}")
++    return _cli_result_from_text(proc.stdout, model=cli_model)
++
++
+ def _azure_client(api_key: str, endpoint: str):
+     """Construct an AzureOpenAI client with env-driven api_version and timeout."""
+     try:
+@@ -1762,7 +2014,9 @@
+                 "No LLM backend configured. Set one of: GEMINI_API_KEY, ANTHROPIC_API_KEY, "
+                 "OPENAI_API_KEY, DEEPSEEK_API_KEY, MOONSHOT_API_KEY, "
+                 "AZURE_OPENAI_API_KEY+AZURE_OPENAI_ENDPOINT, OLLAMA_BASE_URL, "
+-                "or AWS credentials. Pass backend= explicitly to select a provider."
++                "or AWS credentials. Pass backend= explicitly to select a provider. "
++                "CLI-agent backends (hermes/opencode/codex) are auto-detected when "
++                "their CLI is on $PATH and need no API key."
+             )
+     if backend not in BACKENDS:
+         raise ValueError(f"Unknown backend {backend!r}. Available: {sorted(BACKENDS)}")
+@@ -1782,7 +2036,7 @@
+             file=sys.stderr,
+         )
+         key = "ollama"
+-    if not key and backend not in ("bedrock", "claude-cli"):
++    if not key and backend not in ("bedrock", "claude-cli", "hermes", "opencode", "codex"):
+         raise ValueError(
+             f"No API key for backend '{backend}'. "
+             f"Set {_format_backend_env_keys(backend)} or pass api_key=."
+@@ -1806,6 +2060,12 @@
+         result = _call_claude(key, mdl, user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
+     elif backend == "claude-cli":
+         result = _call_claude_cli(user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
++    elif backend == "hermes":
++        result = _call_hermes_cli(user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
++    elif backend == "opencode":
++        result = _call_opencode_cli(user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
++    elif backend == "codex":
++        result = _call_codex_cli(user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
+     elif backend == "bedrock":
+         result = _call_bedrock(mdl, user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
+     elif backend == "azure":
+@@ -2333,8 +2593,12 @@
+         max_concurrency = 1
+     # claude-cli shells out to a Claude Code session; parallel subprocesses conflict
+     # over session state. Force serial unless the user explicitly opts in.
++    # Same for the CLI-agent backends (hermes/opencode/codex): each spawns its
++    # own agent process; parallel runs are wasteful and racy on shared state.
+     if backend == "claude-cli" and os.environ.get("GRAPHIFY_CLAUDE_CLI_PARALLEL", "").strip() != "1":
+         max_concurrency = 1
++    if backend in ("hermes", "opencode", "codex") and os.environ.get("GRAPHIFY_CLI_PARALLEL", "").strip() != "1":
++        max_concurrency = 1
+     def _checkpoint_chunk(result: dict, chunk: "list[Path | FileSlice]") -> None:
+         # Persist each chunk's semantic results to the cache as soon as it
+         # completes. Without this, the semantic cache is only written once, at
+@@ -2577,7 +2841,7 @@
+         ollama_url = _resolve_ollama_base_url(cfg.get("base_url", ""))
+         _validate_ollama_base_url(ollama_url)
+         key = "ollama"
+-    if not key and backend not in ("bedrock", "claude-cli"):
++    if not key and backend not in ("bedrock", "claude-cli", "hermes", "opencode", "codex"):
+         raise ValueError(
+             f"No API key for backend '{backend}'. Set {_format_backend_env_keys(backend)}."
+         )
+@@ -2651,6 +2915,88 @@
+             )
+         return envelope.get("result", "")
+ 
++    if backend == "hermes":
++        import shutil, subprocess
++        if shutil.which("hermes") is None:
++            raise RuntimeError("hermes CLI not found on $PATH")
++        cli_args = ["hermes", "-z", prompt]
++        if model is not None:
++            cli_args.extend(["-m", mdl])
++        proc = subprocess.run(
++            cli_args,
++            capture_output=True,
++            text=True,
++            encoding="utf-8",
++            errors="replace",
++            timeout=_resolve_api_timeout(),
++            check=False,
++            **_no_window_kwargs(),
++        )
++        if proc.returncode != 0:
++            detail = proc.stderr.strip() or proc.stdout.strip() or "(no output)"
++            raise RuntimeError(f"hermes -z exited {proc.returncode}: {detail[:500]}")
++        return proc.stdout
++
++    if backend == "opencode":
++        import shutil, subprocess
++        if shutil.which("opencode") is None:
++            raise RuntimeError("opencode CLI not found on $PATH")
++        cli_model = mdl or "opencode-go/deepseek-v4-flash"
++        proc = subprocess.run(
++            ["opencode", "run", "--pure", "--format", "json", "--model", cli_model, prompt],
++            capture_output=True,
++            text=True,
++            encoding="utf-8",
++            errors="replace",
++            timeout=_resolve_api_timeout(),
++            check=False,
++            **_no_window_kwargs(),
++        )
++        if proc.returncode != 0:
++            detail = proc.stderr.strip() or proc.stdout.strip() or "(no output)"
++            raise RuntimeError(f"opencode run exited {proc.returncode}: {detail[:500]}")
++        raw_content, inp, out = _opencode_parse_events(proc.stdout)
++        _rec(inp, out)
++        return raw_content
++
++    if backend == "codex":
++        import shutil, subprocess, tempfile
++        if shutil.which("codex") is None:
++            raise RuntimeError("codex CLI not found on $PATH")
++        cli_model = mdl or ""
++        cli_args = ["codex", "exec", "--sandbox", "danger-full-access"]
++        if cli_model:
++            cli_args.extend(["-m", cli_model])
++        cli_args.append(prompt)
++        cwd = None
++        git_ok = subprocess.run(
++            ["git", "rev-parse", "--is-inside-work-tree"], capture_output=True, text=True
++        ).returncode == 0
++        if not git_ok:
++            tmp = tempfile.mkdtemp(prefix="graphify-codex-")
++            subprocess.run(["git", "init", "-q"], cwd=tmp, capture_output=True)
++            cwd = tmp
++        try:
++            proc = subprocess.run(
++                cli_args,
++                capture_output=True,
++                text=True,
++                encoding="utf-8",
++                errors="replace",
++                timeout=_resolve_api_timeout(),
++                check=False,
++                cwd=cwd,
++                **_no_window_kwargs(),
++            )
++        finally:
++            if cwd is not None:
++                import shutil as _sh
++                _sh.rmtree(cwd, ignore_errors=True)
++        if proc.returncode != 0:
++            detail = proc.stderr.strip() or proc.stdout.strip() or "(no output)"
++            raise RuntimeError(f"codex exec exited {proc.returncode}: {detail[:500]}")
++        return proc.stdout
++
+ 
+     if backend == "bedrock":
+         try:
+@@ -2849,9 +3195,17 @@
+         _validate_ollama_base_url(ollama_url)
+         return "ollama"
+     for name in BACKENDS:
+-        if name not in ("gemini", "kimi", "claude", "openai", "deepseek", "azure", "bedrock", "ollama", "claude-cli"):
++        if name not in ("gemini", "kimi", "claude", "openai", "deepseek", "azure", "bedrock", "ollama", "claude-cli", "hermes", "opencode", "codex"):
+             if _get_backend_api_key(name):
+                 return name
++    # CLI-agent backends need no API key — pick the first installed CLI.
++    # Prefer hermes (Hermes Agent, the user's primary tool), then opencode,
++    # then codex. They are checked AFTER the paid/API backends so an explicit
++    # API key or OLLAMA_BASE_URL is never shadowed.
++    import shutil
++    for cli_backend, cli_name in (("hermes", "hermes"), ("opencode", "opencode"), ("codex", "codex")):
++        if shutil.which(cli_name) is not None:
++            return cli_backend
+     return None
+ 
+ 
+@@ -3067,6 +3421,8 @@
+         max_concurrency = 1
+     if backend == "claude-cli" and os.environ.get("GRAPHIFY_CLAUDE_CLI_PARALLEL", "").strip() != "1":
+         max_concurrency = 1
++    if backend in ("hermes", "opencode", "codex") and os.environ.get("GRAPHIFY_CLI_PARALLEL", "").strip() != "1":
++        max_concurrency = 1
+     workers = max(1, min(max_concurrency, n_batches))
+ 
+     def _run_batch(batch_idx: int):
+--- graphifyy-0.9.44-orig/README.md	2026-08-15 15:16:48.946251900 -0600
++++ graphifyy-0.9.44/README.md	2026-08-16 19:30:12.852548056 -0600
+@@ -732,6 +732,9 @@
+ GRAPHIFY_OLLAMA_KEEP_ALIVE=0 graphify extract ./docs --backend ollama    # unload model after each chunk (saves VRAM on small GPUs)
+ graphify extract ./docs --backend bedrock      # AWS Bedrock via IAM - no API key, uses AWS credential chain
+ graphify extract ./docs --backend claude-cli   # route through Claude Code CLI - no API key, uses your Claude subscription
++graphify extract ./docs --backend hermes       # Hermes Agent CLI headless (`hermes -z`) - no API key, free tier by default
++graphify extract ./docs --backend opencode     # OpenCode CLI headless (`opencode run --format json`) - free opencode-go/deepseek-v4-flash
++graphify extract ./docs --backend codex        # Codex CLI headless (`codex exec`) - no API key; uses your ChatGPT/Codex account
+ graphify extract ./docs --backend azure        # Azure OpenAI (set AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT)
+ graphify extract ./docs --max-workers 16       # AST parallelism (also GRAPHIFY_MAX_WORKERS)
+ graphify extract --postgres "postgresql://user:pass@host/db"   # introspect live PostgreSQL schema directly
