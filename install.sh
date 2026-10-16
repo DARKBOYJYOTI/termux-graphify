@@ -12,7 +12,7 @@
 #   2. instala deps del sistema: python, python-numpy, python-networkx (pkg)
 #   3. descarga los wheels android_arm64_v8a del release de GitHub
 #   4. crea un venv con --system-site-packages (numpy/networkx nativos)
-#   5. instala los wheels + graphifyy 0.9.44 (--no-deps: ya estan todos aqui)
+#   5. instala los wheels + graphifyy 0.9.92 (--no-deps: ya estan todos aqui)
 #   6. smoke test y mensaje de uso
 #
 # Requisitos: python3 (lo instala el propio script via pkg), curl o gh.
@@ -21,7 +21,7 @@
 set -eu
 
 REPO="${REPO:-DARKBOYJYOTI/termux-graphify}"
-GRAPHIFY_VERSION="${GRAPHIFY_VERSION:-0.9.44}"
+GRAPHIFY_VERSION="${GRAPHIFY_VERSION:-0.9.92}"
 VENV="${GRAPHIFY_VENV:-$HOME/graphify-venv}"
 WHEEL_DIR="${GRAPHIFY_WHEEL_DIR:-$HOME/graphify-wheels}"
 TAG=""                 # release tag; vacio = releases/latest

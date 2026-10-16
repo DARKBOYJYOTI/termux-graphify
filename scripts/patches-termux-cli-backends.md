@@ -1,4 +1,4 @@
-# Parche termux: backends CLI (hermes/opencode/codex) para graphifyy 0.9.44
+# Parche termux: backends CLI (hermes/opencode/codex) para graphifyy 0.9.92
 
 Añade 3 backends de extracción semántica que enrutan por el CLI local en modo
 headless (patrón `claude-cli`), sin API key:
@@ -12,17 +12,17 @@ headless (patrón `claude-cli`), sin API key:
 ## Cómo se construye el wheel parcheado
 
 ```bash
-pip download --no-deps --no-binary :all: "graphifyy==0.9.44" -d sdists/
-tar xzf sdists/graphifyy-0.9.44.tar.gz
-cd graphifyy-0.9.44
+pip download --no-deps --no-binary :all: "graphifyy==0.9.92" -d sdists/
+tar xzf sdists/graphifyy-0.9.92.tar.gz
+cd graphifyy-0.9.92
 patch -p1 < ../patches-termux-cli-backends.patch   # o apply manualmente
-sed -i 's/^version = "0.9.44"/version = "0.9.44+termux1"/' pyproject.toml
+sed -i 's/^version = "0.9.92"/version = "0.9.92+termux1"/' pyproject.toml
 python -m pip wheel --no-deps --no-build-isolation -w dist/ .
-# -> graphifyy-0.9.44+termux1-py3-none-any.whl  (publicar en el release)
+# -> graphifyy-0.9.92+termux1-py3-none-any.whl  (publicar en el release)
 ```
 
 El `install.sh` detecta `graphifyy-*.whl` en el release y lo instala con
-`--no-index` (sin tocar PyPI); si no está, cae a `pip install graphifyy==0.9.44`.
+`--no-index` (sin tocar PyPI); si no está, cae a `pip install graphifyy==0.9.92`.
 
 ## Archivos tocados
 

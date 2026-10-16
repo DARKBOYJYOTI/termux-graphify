@@ -1,5 +1,5 @@
 # Manifest de paquetes a compilar para Termux/Android (bionic aarch64).
-# Versiones resueltas contra los rangos de graphifyy 0.9.44 (pyproject.toml),
+# Versiones resueltas contra los rangos de graphifyy 0.9.92 (pyproject.toml),
 # eligiendo la ultima version en rango QUE TENGA sdist (pip en Termux solo
 # acepta tags android_*, nunca wheels manylinux).
 # Lineas con # se ignoran. Formato: paquete==version
@@ -11,7 +11,7 @@
 # --no-deps y no usa ninguna API deprecada del binding 0.26.
 tree-sitter==0.26.0
 #
-# Grammars (deps base de graphifyy 0.9.44)
+# Grammars (deps base de graphifyy 0.9.92)
 tree-sitter-python==0.25.0
 tree-sitter-javascript==0.25.0
 tree-sitter-typescript==0.23.2

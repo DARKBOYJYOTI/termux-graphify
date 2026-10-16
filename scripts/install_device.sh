@@ -16,7 +16,7 @@ set -euo pipefail
 REPO="${REPO:-DARKBOYJYOTI/termux-graphify}"
 VENV="${GRAPHIFY_VENV:-$HOME/graphify-venv}"
 WHEEL_DIR="$HOME/graphify-wheels"
-GRAPHIFY_VERSION="${GRAPHIFY_VERSION:-0.9.44}"
+GRAPHIFY_VERSION="${GRAPHIFY_VERSION:-0.9.92}"
 MODE="github"
 
 if [ "${1:-}" = "--local" ]; then

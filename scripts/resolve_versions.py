@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Resuelve la version exacta de cada grammar tree-sitter dentro del rango
-que pide graphifyy 0.9.44, consultando la API JSON de PyPI."""
+que pide graphifyy 0.9.92, consultando la API JSON de PyPI."""
 import json
 import urllib.request
 
-# (paquete, rango) — copiado de pyproject.toml de graphifyy 0.9.44
+# (paquete, rango) — copiado de pyproject.toml de graphifyy 0.9.92
 DEPS = [
-    ("tree-sitter", ">=0.23.0,<0.26"),
+    ("tree-sitter", ">=0.25,<0.26"),
     ("tree-sitter-python", ">=0.23,<0.26"),
     ("tree-sitter-javascript", ">=0.23,<0.26"),
     ("tree-sitter-typescript", ">=0.23,<0.25"),

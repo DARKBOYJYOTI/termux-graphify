@@ -1,7 +1,25 @@
-diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphify/__main__.py graphifyy-0.9.44/graphify/__main__.py
---- graphifyy-0.9.44-orig/graphify/__main__.py	2026-08-15 15:16:48.953677000 -0600
-+++ graphifyy-0.9.44/graphify/__main__.py	2026-08-16 19:31:41.216548061 -0600
-@@ -593,7 +593,7 @@
+diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/README.md /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/README.md
+--- graphifyy-0.9.92-orig/README.md
++++ graphifyy-0.9.92/README.md
+@@ -367,6 +367,14 @@
+ 
+ See the [full command reference](#full-command-reference) below.
+ 
++### Local CLI backends (Termux port)
++
++```bash
++graphify extract ./docs --backend hermes   # Hermes Agent CLI headless (`hermes -z`) - no API key, free tier by default
++graphify extract ./docs --backend opencode # OpenCode CLI headless (`opencode run --format json`) - free opencode-go/deepseek-v4-flash
++graphify extract ./docs --backend codex    # Codex CLI headless (`codex exec`) - no API key; uses your ChatGPT/Codex account
++```
++
+ ---
+ 
+ ## Ignoring files
+diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/graphify/__main__.py /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/graphify/__main__.py
+--- graphifyy-0.9.92-orig/graphify/__main__.py
++++ graphifyy-0.9.92/graphify/__main__.py
+@@ -950,7 +950,7 @@
          print("    --top-k-edges N         per-symbol outbound edges in inspector (default 12)")
          print("    --label NAME            project label in header")
          print("  extract <path>          headless full extraction (AST + semantic LLM) for CI/scripts")
@@ -10,19 +28,19 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
          print("                            openai also reaches self-hosted OpenAI-compatible servers (llama.cpp,")
          print("                            vLLM, LM Studio): set OPENAI_BASE_URL (e.g. http://localhost:8080/v1)")
          print("                            and OPENAI_MODEL to the model name your server serves")
-diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphify/cli.py graphifyy-0.9.44/graphify/cli.py
---- graphifyy-0.9.44-orig/graphify/cli.py	2026-08-15 15:16:48.955252000 -0600
-+++ graphifyy-0.9.44/graphify/cli.py	2026-08-16 19:31:23.204548060 -0600
-@@ -2819,7 +2819,7 @@
+diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/graphify/cli.py /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/graphify/cli.py
+--- graphifyy-0.9.92-orig/graphify/cli.py
++++ graphifyy-0.9.92/graphify/cli.py
+@@ -3648,7 +3648,7 @@
          # has an API key set.
          if len(sys.argv) < 3:
              print(
 -                "Usage: graphify extract <path> [--backend gemini|kimi|claude|openai|deepseek|ollama] "
 +                "Usage: graphify extract <path> [--backend gemini|kimi|claude|openai|deepseek|ollama|hermes|opencode|codex] "
                  "[--model M] [--mode deep] [--out DIR|--output DIR] [--google-workspace] [--no-cluster] "
-                 "[--no-gitignore] [--code-only] "
+                 "[--no-gitignore] [--code-only] [--no-dedup] "
                  "[--max-workers N] [--token-budget N] [--max-concurrency N] "
-@@ -3293,6 +3293,36 @@
+@@ -4222,6 +4222,36 @@
                              file=sys.stderr,
                          )
                          sys.exit(1)
@@ -59,10 +77,10 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
                  if not allow_no_key:
                      print(
                          f"error: backend '{backend}' requires {_format_backend_env_keys(backend)} to be set.",
-diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphify/llm.py graphifyy-0.9.44/graphify/llm.py
---- graphifyy-0.9.44-orig/graphify/llm.py	2026-08-15 15:16:48.962252000 -0600
-+++ graphifyy-0.9.44/graphify/llm.py	2026-08-16 19:30:05.432548055 -0600
-@@ -215,6 +215,38 @@
+diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/graphify/llm.py /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/graphify/llm.py
+--- graphifyy-0.9.92-orig/graphify/llm.py
++++ graphifyy-0.9.92/graphify/llm.py
+@@ -243,6 +243,38 @@
          # CLI's Read tool rather than as inline base64 (see `_call_claude_cli`).
          "vision": True,
      },
@@ -101,7 +119,7 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
  }
  
  
-@@ -1132,6 +1164,8 @@
+@@ -1362,6 +1394,8 @@
  
  def _format_backend_env_keys(backend: str) -> str:
      """Return user-facing accepted API-key variable names."""
@@ -110,7 +128,7 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
      keys = _backend_env_keys(backend)
      return " or ".join(keys) if keys else "AWS_PROFILE or AWS_REGION"
  
-@@ -1613,6 +1647,224 @@
+@@ -1955,6 +1989,224 @@
      return result
  
  
@@ -335,7 +353,7 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
  def _azure_client(api_key: str, endpoint: str):
      """Construct an AzureOpenAI client with env-driven api_version and timeout."""
      try:
-@@ -1762,7 +2014,9 @@
+@@ -2097,7 +2349,9 @@
                  "No LLM backend configured. Set one of: GEMINI_API_KEY, ANTHROPIC_API_KEY, "
                  "OPENAI_API_KEY, DEEPSEEK_API_KEY, MOONSHOT_API_KEY, "
                  "AZURE_OPENAI_API_KEY+AZURE_OPENAI_ENDPOINT, OLLAMA_BASE_URL, "
@@ -346,7 +364,7 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
              )
      if backend not in BACKENDS:
          raise ValueError(f"Unknown backend {backend!r}. Available: {sorted(BACKENDS)}")
-@@ -1782,7 +2036,7 @@
+@@ -2117,7 +2371,7 @@
              file=sys.stderr,
          )
          key = "ollama"
@@ -355,7 +373,7 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
          raise ValueError(
              f"No API key for backend '{backend}'. "
              f"Set {_format_backend_env_keys(backend)} or pass api_key=."
-@@ -1806,6 +2060,12 @@
+@@ -2141,6 +2395,12 @@
          result = _call_claude(key, mdl, user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
      elif backend == "claude-cli":
          result = _call_claude_cli(user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
@@ -368,7 +386,7 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
      elif backend == "bedrock":
          result = _call_bedrock(mdl, user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
      elif backend == "azure":
-@@ -2333,8 +2593,12 @@
+@@ -2797,8 +3057,12 @@
          max_concurrency = 1
      # claude-cli shells out to a Claude Code session; parallel subprocesses conflict
      # over session state. Force serial unless the user explicitly opts in.
@@ -381,7 +399,7 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
      def _checkpoint_chunk(result: dict, chunk: "list[Path | FileSlice]") -> None:
          # Persist each chunk's semantic results to the cache as soon as it
          # completes. Without this, the semantic cache is only written once, at
-@@ -2577,7 +2841,7 @@
+@@ -3071,7 +3335,7 @@
          ollama_url = _resolve_ollama_base_url(cfg.get("base_url", ""))
          _validate_ollama_base_url(ollama_url)
          key = "ollama"
@@ -390,7 +408,7 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
          raise ValueError(
              f"No API key for backend '{backend}'. Set {_format_backend_env_keys(backend)}."
          )
-@@ -2651,6 +2915,88 @@
+@@ -3149,6 +3413,88 @@
              )
          return envelope.get("result", "")
  
@@ -479,14 +497,15 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
  
      if backend == "bedrock":
          try:
-@@ -2849,9 +3195,17 @@
+@@ -3435,10 +3781,18 @@
          _validate_ollama_base_url(ollama_url)
-         return "ollama"
+         return "ollama", "auto-detected from Ollama configuration"
      for name in BACKENDS:
 -        if name not in ("gemini", "kimi", "claude", "openai", "deepseek", "azure", "bedrock", "ollama", "claude-cli"):
 +        if name not in ("gemini", "kimi", "claude", "openai", "deepseek", "azure", "bedrock", "ollama", "claude-cli", "hermes", "opencode", "codex"):
              if _get_backend_api_key(name):
-                 return name
+                 env = _first_set_env(_backend_env_keys(name)) or name
+                 return name, f"auto-detected from {env}"
 +    # CLI-agent backends need no API key — pick the first installed CLI.
 +    # Prefer hermes (Hermes Agent, the user's primary tool), then opencode,
 +    # then codex. They are checked AFTER the paid/API backends so an explicit
@@ -494,11 +513,11 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
 +    import shutil
 +    for cli_backend, cli_name in (("hermes", "hermes"), ("opencode", "opencode"), ("codex", "codex")):
 +        if shutil.which(cli_name) is not None:
-+            return cli_backend
-     return None
++            return cli_backend, f"auto-detected CLI {cli_name} on PATH"
+     return None, "no backend configured"
  
  
-@@ -3067,6 +3421,8 @@
+@@ -3699,6 +4053,8 @@
          max_concurrency = 1
      if backend == "claude-cli" and os.environ.get("GRAPHIFY_CLAUDE_CLI_PARALLEL", "").strip() != "1":
          max_concurrency = 1
@@ -507,15 +526,15 @@ diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' graphifyy-0.9.44-orig/graphi
      workers = max(1, min(max_concurrency, n_batches))
  
      def _run_batch(batch_idx: int):
---- graphifyy-0.9.44-orig/README.md	2026-08-15 15:16:48.946251900 -0600
-+++ graphifyy-0.9.44/README.md	2026-08-16 19:30:12.852548056 -0600
-@@ -732,6 +732,9 @@
- GRAPHIFY_OLLAMA_KEEP_ALIVE=0 graphify extract ./docs --backend ollama    # unload model after each chunk (saves VRAM on small GPUs)
- graphify extract ./docs --backend bedrock      # AWS Bedrock via IAM - no API key, uses AWS credential chain
- graphify extract ./docs --backend claude-cli   # route through Claude Code CLI - no API key, uses your Claude subscription
-+graphify extract ./docs --backend hermes       # Hermes Agent CLI headless (`hermes -z`) - no API key, free tier by default
-+graphify extract ./docs --backend opencode     # OpenCode CLI headless (`opencode run --format json`) - free opencode-go/deepseek-v4-flash
-+graphify extract ./docs --backend codex        # Codex CLI headless (`codex exec`) - no API key; uses your ChatGPT/Codex account
- graphify extract ./docs --backend azure        # Azure OpenAI (set AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT)
- graphify extract ./docs --max-workers 16       # AST parallelism (also GRAPHIFY_MAX_WORKERS)
- graphify extract --postgres "postgresql://user:pass@host/db"   # introspect live PostgreSQL schema directly
+diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/pyproject.toml /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/pyproject.toml
+--- graphifyy-0.9.92-orig/pyproject.toml
++++ graphifyy-0.9.92/pyproject.toml
+@@ -4,7 +4,7 @@
+ 
+ [project]
+ name = "graphifyy"
+-version = "0.9.92"
++version = "0.9.92+termux1"
+ description = "AI coding assistant skill (Claude Code, CodeBuddy, Codex, OpenCode, Kilo Code, Cursor, Gemini CLI, Aider, OpenClaw, Factory Droid, Trae, Hermes, Kiro, Pi, Devin CLI, Google Antigravity) - turn any folder of code, docs, papers, images, or videos into a queryable knowledge graph"
+ readme = "README.md"
+ license = "Apache-2.0"

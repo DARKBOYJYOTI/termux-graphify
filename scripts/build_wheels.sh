@@ -289,7 +289,26 @@ else
 fi
 
 echo
+echo "== [7/7] graphifyy+termux wheel (sdist + CLI-backends patch) =="
+# GRAPHIFY_VERSION must match scripts/patches-termux-cli-backends.patch.
+GF_VER="${GRAPHIFY_VERSION:-0.9.92}"
+GF_SRC="$BUILD_DIR/graphifyy-$GF_VER"
+rm -rf "$GF_SRC"
+mkdir -p "$SDIST_DIR"
+(cd "$SDIST_DIR" && python -m pip download --no-deps --no-binary :all: "graphifyy==$GF_VER" --progress-bar off) \
+  || { echo "ERROR: downloading graphifyy==$GF_VER sdist"; exit 1; }
+tar xzf "$SDIST_DIR"/graphifyy-"$GF_VER".tar.gz -C "$BUILD_DIR"
+(cd "$GF_SRC" && patch -p1 < "$SCRIPTS/patches-termux-cli-backends.patch") \
+  || { echo "ERROR: CLI-backends patch does not apply to graphifyy==$GF_VER (port the patch first)"; exit 1; }
+(cd "$GF_SRC" && sed -i 's/^version = ".*/version = "'"$GF_VER+termux1"'"/' pyproject.toml \
+  && grep -q "^version = \"$GF_VER+termux1\"$" pyproject.toml) \
+  || { echo "ERROR: stamping +termux1 version"; exit 1; }
+(cd "$GF_SRC" && python -m pip wheel --no-deps --no-build-isolation -w "$WHEELS" . --progress-bar off >"$LOG" 2>&1) \
+  || { echo "ERROR: graphifyy wheel build failed:"; tail -15 "$LOG"; exit 1; }
+echo "graphifyy wheel OK: $(ls "$WHEELS"/graphifyy-*.whl)"
+
+echo
 echo "== RESUMEN =="
-echo "Wheels OK:   $(ls "$WHEELS"/*.whl 2>/dev/null | wc -l)"
-echo "Wheels FAIL: $(ls "$FAILED"/*.whl 2>/dev/null | wc -l)"
+Wheels OK:   $(ls "$WHEELS"/*.whl 2>/dev/null | wc -l)
+Wheels FAIL: $(ls "$FAILED"/*.whl 2>/dev/null | wc -l)
 ls "$WHEELS" 2>/dev/null
