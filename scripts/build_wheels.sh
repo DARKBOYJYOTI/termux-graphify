@@ -309,6 +309,6 @@ echo "graphifyy wheel OK: $(ls "$WHEELS"/graphifyy-*.whl)"
 
 echo
 echo "== RESUMEN =="
-Wheels OK:   $(ls "$WHEELS"/*.whl 2>/dev/null | wc -l)
-Wheels FAIL: $(ls "$FAILED"/*.whl 2>/dev/null | wc -l)
+echo "Wheels OK:   $(ls "$WHEELS"/*.whl 2>/dev/null | wc -l)"
+echo "Wheels FAIL: $(ls "$FAILED"/*.whl 2>/dev/null | wc -l)"
 ls "$WHEELS" 2>/dev/null
