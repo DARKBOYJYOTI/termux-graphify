@@ -24,7 +24,7 @@ if [ "${1:-}" = "--local" ]; then
   WHEEL_DIR="${2:?missing local wheels directory}"
 fi
 
-echo "== [1/4] fetching wheels =="
+echo "== [1/5] fetching wheels =="
 mkdir -p "$WHEEL_DIR"
 if [ "$MODE" = "github" ]; then
   if command -v gh >/dev/null 2>&1; then
@@ -56,13 +56,13 @@ N_WHEELS="$(ls "$WHEEL_DIR"/*.whl 2>/dev/null | wc -l)"
 [ "$N_WHEELS" -gt 0 ] || { echo "no wheels in $WHEEL_DIR"; exit 1; }
 echo "downloaded wheels: $N_WHEELS"
 
-echo "== [2/4] creating venv (--system-site-packages: native numpy/networkx) =="
+echo "== [2/5] creating venv (--system-site-packages: native numpy/networkx) =="
 PYBIN="$(command -v python || command -v python3)" || { echo "no python found; pkg install python"; exit 1; }
 if [ ! -d "$VENV" ]; then
   "$PYBIN" -m venv "$VENV" --system-site-packages
 fi
 
-echo "== [3/4] installing wheels + graphifyy =="
+echo "== [3/5] installing wheels + graphifyy =="
 "$VENV/bin/pip" install --upgrade pip >/dev/null
 "$VENV/bin/pip" install --no-deps --no-index --find-links "$WHEEL_DIR" "$WHEEL_DIR"/*.whl
 # graphifyy: prefer the patched (+termux) wheel from the release when present;
@@ -77,7 +77,7 @@ else
   "$VENV/bin/pip" install --no-deps "graphifyy==$GRAPHIFY_VERSION"
 fi
 
-echo "== [4/4] smoke test =="
+echo "== [4/5] smoke test =="
 "$VENV/bin/graphify" --version
 echo
 echo "Installed grammars:"

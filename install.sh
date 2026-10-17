@@ -61,7 +61,7 @@ esac
 PY=python3
 command -v "$PY" >/dev/null 2>&1 || { echo "ERROR: no python3; run: pkg install python"; exit 1; }
 
-echo "== [1/6] system deps =="
+echo "== [1/7] system deps =="
 if [ "$SKIP_DEPS" = "0" ]; then
     # Native python-numpy/python-networkx: correct ABI for bionic aarch64
     # (PyPI numpy wheels do not install on Termux). Never pip install numpy.
@@ -72,7 +72,7 @@ else
     echo "  (--skip-deps: assuming python-numpy/python-networkx are installed)"
 fi
 
-echo "== [2/6] fetching wheels =="
+echo "== [2/7] fetching wheels =="
 mkdir -p "$WHEEL_DIR"
 N_WHEELS=0
 if [ -n "$LOCAL_DIR" ]; then
@@ -122,7 +122,7 @@ N_WHEELS=$(ls "$WHEEL_DIR"/*.whl 2>/dev/null | wc -l)
 [ "$N_WHEELS" -gt 0 ] || { echo "ERROR: no wheels in $WHEEL_DIR"; exit 1; }
 echo "  wheels available: $N_WHEELS"
 
-echo "== [3/6] creating venv (--system-site-packages: native numpy/networkx) =="
+echo "== [3/7] creating venv (--system-site-packages: native numpy/networkx) =="
 # Termux ensurepip may lack its bundled wheel, failing plain venv creation.
 # Strategy: try a normal venv; if pip ends up missing, point at system pip;
 # as a last resort, --target + a manual wrapper.
@@ -141,7 +141,7 @@ if ! "$VENV_PY" -m pip --version >/dev/null 2>&1; then
     fi
 fi
 
-echo "== [4/6] installing wheels + graphifyy =="
+echo "== [4/7] installing wheels + graphifyy =="
 # 1) local wheels (all --no-deps: everything needed is already here)
 if "$VENV_PY" -m pip --version >/dev/null 2>&1; then
     "$VENV_PY" -m pip install --no-index --no-deps --find-links "$WHEEL_DIR" \
@@ -180,7 +180,7 @@ else
     fi
 fi
 
-echo "== [5/6] launcher (entry point) =="
+echo "== [5/7] launcher (entry point) =="
 # with a normal pip the `graphify` entry point already exists; without pip
 # (--target) create it manually
 if [ ! -x "$VENV/bin/graphify" ]; then
