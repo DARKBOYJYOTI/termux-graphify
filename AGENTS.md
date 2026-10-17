@@ -28,6 +28,7 @@ with zero on-device compiling. Single branch (`main`). Upstream port lineage:
 | `scripts/resolve_versions.py` | Exact grammar versions inside graphify's supported ranges (PyPI JSON API) |
 | `scripts/test_grammars.py` | Per-grammar runtime verification (import → Language → parse); failures → `failed/` |
 | `scripts/grammar_manifest.txt` | Pinned grammar set (`package==version` lines) |
+| `scripts/patch_skill_bootstrap.py` | Post-install skill fix: reorders `SKILL.md` bootstrap to venv-first (idempotent, never fatal) |
 | `scripts/patches-termux-cli-backends.*` | Local-CLI backends patch + build notes for the `+termuxN` wheel |
 | `graphify-pyproject.toml` | Upstream build metadata reference (ranges source of truth) |
 | `.github/workflows/build-wheels.yml` | CI build in a real Termux container, native arm64, up to 4 h |
@@ -99,6 +100,7 @@ rapidfuzz **3.14.5**, 25 grammars per `scripts/grammar_manifest.txt`.
 bash scripts/install_device.sh --local /path/to/wheels  # offline install test
 python3 scripts/test_grammars.py                        # per-grammar runtime test
 graphify --version                                      # smoke test after install
+python3 scripts/patch_skill_bootstrap.py                # skill venv-first fix (idempotent)
 ```
 
 On-device acceptance for every release (isolated test venv — never the live
