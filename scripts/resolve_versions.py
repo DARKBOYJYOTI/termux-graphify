@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Resuelve la version exacta de cada grammar tree-sitter dentro del rango
-que pide graphifyy 0.9.92, consultando la API JSON de PyPI."""
+que pide graphifyy 0.9.118, consultando la API JSON de PyPI."""
 import json
 import urllib.request
 
-# (paquete, rango) — copiado de pyproject.toml de graphifyy 0.9.92
+# (paquete, rango) — copiado de pyproject.toml de graphifyy 0.9.118
 DEPS = [
     ("tree-sitter", ">=0.25,<0.26"),
     ("tree-sitter-python", ">=0.23,<0.26"),
@@ -34,6 +34,8 @@ DEPS = [
     ("tree-sitter-json", ">=0.23,<0.26"),
     # deps no-grammar que tambien se compilan
     ("rapidfuzz", ">=3.0"),
+    ("pyyaml", ">=6.0"),
+    ("anyio", ">=4.14.2"),
 ]
 
 
@@ -72,9 +74,9 @@ for pkg, rng in DEPS:
         with urllib.request.urlopen(f"https://pypi.org/pypi/{pkg}/json", timeout=20) as resp:
             data = json.load(resp)
         lo, lo_inc, hi, hi_exc = parse_range(rng)
-        vers = [v for v in data["releases"] if in_range(v, lo, lo_inc, hi, hi_exc)]
-        # descartar pre-releases
-        vers = [v for v in vers if all(c.isdigit() or c == "." for c in v)]
+        # descartar pre-releases ANTES de comparar: ver_key() asume solo digitos
+        vers = [v for v in data["releases"] if all(c.isdigit() or c == "." for c in v)]
+        vers = [v for v in vers if in_range(v, lo, lo_inc, hi, hi_exc)]
         vers.sort(key=ver_key)
         chosen = None
         for v in reversed(vers):

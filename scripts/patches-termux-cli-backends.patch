@@ -1,7 +1,6 @@
-diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/README.md /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/README.md
---- graphifyy-0.9.92-orig/README.md
-+++ graphifyy-0.9.92/README.md
-@@ -367,6 +367,14 @@
+--- a/README.md
++++ b/README.md
+@@ -435,6 +435,14 @@
  
  See the [full command reference](#full-command-reference) below.
  
@@ -15,11 +14,10 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
 +
  ---
  
- ## Ignoring files
-diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/graphify/__main__.py /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/graphify/__main__.py
---- graphifyy-0.9.92-orig/graphify/__main__.py
-+++ graphifyy-0.9.92/graphify/__main__.py
-@@ -950,7 +950,7 @@
+ ## Labeling and rendering limits
+--- a/graphify/__main__.py
++++ b/graphify/__main__.py
+@@ -980,7 +980,7 @@
          print("    --top-k-edges N         per-symbol outbound edges in inspector (default 12)")
          print("    --label NAME            project label in header")
          print("  extract <path>          headless full extraction (AST + semantic LLM) for CI/scripts")
@@ -28,10 +26,9 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
          print("                            openai also reaches self-hosted OpenAI-compatible servers (llama.cpp,")
          print("                            vLLM, LM Studio): set OPENAI_BASE_URL (e.g. http://localhost:8080/v1)")
          print("                            and OPENAI_MODEL to the model name your server serves")
-diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/graphify/cli.py /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/graphify/cli.py
---- graphifyy-0.9.92-orig/graphify/cli.py
-+++ graphifyy-0.9.92/graphify/cli.py
-@@ -3648,7 +3648,7 @@
+--- a/graphify/cli.py
++++ b/graphify/cli.py
+@@ -4402,7 +4402,7 @@
          # has an API key set.
          if len(sys.argv) < 3:
              print(
@@ -40,7 +37,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
                  "[--model M] [--mode deep] [--out DIR|--output DIR] [--google-workspace] [--no-cluster] "
                  "[--no-gitignore] [--code-only] [--no-dedup] "
                  "[--max-workers N] [--token-budget N] [--max-concurrency N] "
-@@ -4222,6 +4222,36 @@
+@@ -5020,6 +5020,36 @@
                              file=sys.stderr,
                          )
                          sys.exit(1)
@@ -77,10 +74,9 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
                  if not allow_no_key:
                      print(
                          f"error: backend '{backend}' requires {_format_backend_env_keys(backend)} to be set.",
-diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/graphify/llm.py /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/graphify/llm.py
---- graphifyy-0.9.92-orig/graphify/llm.py
-+++ graphifyy-0.9.92/graphify/llm.py
-@@ -243,6 +243,38 @@
+--- a/graphify/llm.py
++++ b/graphify/llm.py
+@@ -260,6 +260,38 @@
          # CLI's Read tool rather than as inline base64 (see `_call_claude_cli`).
          "vision": True,
      },
@@ -119,7 +115,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
  }
  
  
-@@ -1362,6 +1394,8 @@
+@@ -1482,6 +1514,8 @@
  
  def _format_backend_env_keys(backend: str) -> str:
      """Return user-facing accepted API-key variable names."""
@@ -128,7 +124,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
      keys = _backend_env_keys(backend)
      return " or ".join(keys) if keys else "AWS_PROFILE or AWS_REGION"
  
-@@ -1955,6 +1989,224 @@
+@@ -2105,6 +2139,224 @@
      return result
  
  
@@ -353,7 +349,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
  def _azure_client(api_key: str, endpoint: str):
      """Construct an AzureOpenAI client with env-driven api_version and timeout."""
      try:
-@@ -2097,7 +2349,9 @@
+@@ -2247,7 +2499,9 @@
                  "No LLM backend configured. Set one of: GEMINI_API_KEY, ANTHROPIC_API_KEY, "
                  "OPENAI_API_KEY, DEEPSEEK_API_KEY, MOONSHOT_API_KEY, "
                  "AZURE_OPENAI_API_KEY+AZURE_OPENAI_ENDPOINT, OLLAMA_BASE_URL, "
@@ -364,7 +360,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
              )
      if backend not in BACKENDS:
          raise ValueError(f"Unknown backend {backend!r}. Available: {sorted(BACKENDS)}")
-@@ -2117,7 +2371,7 @@
+@@ -2267,7 +2521,7 @@
              file=sys.stderr,
          )
          key = "ollama"
@@ -373,7 +369,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
          raise ValueError(
              f"No API key for backend '{backend}'. "
              f"Set {_format_backend_env_keys(backend)} or pass api_key=."
-@@ -2141,6 +2395,12 @@
+@@ -2291,6 +2545,12 @@
          result = _call_claude(key, mdl, user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
      elif backend == "claude-cli":
          result = _call_claude_cli(user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
@@ -386,20 +382,18 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
      elif backend == "bedrock":
          result = _call_bedrock(mdl, user_msg, max_tokens=max_out, deep_mode=deep_mode, images=image_refs)
      elif backend == "azure":
-@@ -2797,8 +3057,12 @@
-         max_concurrency = 1
-     # claude-cli shells out to a Claude Code session; parallel subprocesses conflict
+@@ -2964,6 +3224,10 @@
      # over session state. Force serial unless the user explicitly opts in.
-+    # Same for the CLI-agent backends (hermes/opencode/codex): each spawns its
-+    # own agent process; parallel runs are wasteful and racy on shared state.
      if backend == "claude-cli" and os.environ.get("GRAPHIFY_CLAUDE_CLI_PARALLEL", "").strip() != "1":
          max_concurrency = 1
++    # Same for the CLI-agent backends (hermes/opencode/codex): each spawns its
++    # own agent process; parallel runs are wasteful and racy on shared state.
 +    if backend in ("hermes", "opencode", "codex") and os.environ.get("GRAPHIFY_CLI_PARALLEL", "").strip() != "1":
 +        max_concurrency = 1
-     def _checkpoint_chunk(result: dict, chunk: "list[Path | FileSlice]") -> None:
-         # Persist each chunk's semantic results to the cache as soon as it
-         # completes. Without this, the semantic cache is only written once, at
-@@ -3071,7 +3335,7 @@
+     # A file split into slices is complete only once every slice has returned
+     # (#4943). Checkpointing each slice as it lands stamped the parent's entry
+     # complete after its first slice, so an interrupted run served the head of
+@@ -3325,7 +3589,7 @@
          ollama_url = _resolve_ollama_base_url(cfg.get("base_url", ""))
          _validate_ollama_base_url(ollama_url)
          key = "ollama"
@@ -408,7 +402,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
          raise ValueError(
              f"No API key for backend '{backend}'. Set {_format_backend_env_keys(backend)}."
          )
-@@ -3149,6 +3413,88 @@
+@@ -3403,6 +3667,88 @@
              )
          return envelope.get("result", "")
  
@@ -497,7 +491,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
  
      if backend == "bedrock":
          try:
-@@ -3435,10 +3781,18 @@
+@@ -3691,10 +4037,18 @@
          _validate_ollama_base_url(ollama_url)
          return "ollama", "auto-detected from Ollama configuration"
      for name in BACKENDS:
@@ -517,7 +511,7 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
      return None, "no backend configured"
  
  
-@@ -3699,6 +4053,8 @@
+@@ -3969,6 +4323,8 @@
          max_concurrency = 1
      if backend == "claude-cli" and os.environ.get("GRAPHIFY_CLAUDE_CLI_PARALLEL", "").strip() != "1":
          max_concurrency = 1
@@ -526,15 +520,3 @@ diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/
      workers = max(1, min(max_concurrency, n_batches))
  
      def _run_batch(batch_idx: int):
-diff -u -r '--exclude=*.egg-info' '--exclude=__pycache__' /data/data/com.termux/files/usr/tmp/gfpristine/graphifyy-0.9.92/pyproject.toml /data/data/com.termux/files/usr/tmp/gfport/graphifyy-0.9.92/pyproject.toml
---- graphifyy-0.9.92-orig/pyproject.toml
-+++ graphifyy-0.9.92/pyproject.toml
-@@ -4,7 +4,7 @@
- 
- [project]
- name = "graphifyy"
--version = "0.9.92"
-+version = "0.9.92+termux1"
- description = "AI coding assistant skill (Claude Code, CodeBuddy, Codex, OpenCode, Kilo Code, Cursor, Gemini CLI, Aider, OpenClaw, Factory Droid, Trae, Hermes, Kiro, Pi, Devin CLI, Google Antigravity) - turn any folder of code, docs, papers, images, or videos into a queryable knowledge graph"
- readme = "README.md"
- license = "Apache-2.0"

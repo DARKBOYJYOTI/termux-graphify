@@ -54,11 +54,20 @@ with zero on-device compiling. Single branch (`main`). Upstream port lineage:
   `detect_backend()` before shipping.
 - Every grammar must pass the runtime test. Failures go to `failed/` and
   never ship. Never widen ABI ranges or skip tests to silence a failure.
+- Device installs run with `--no-deps`, so every required runtime dep must
+  ship as a wheel. Since 0.9.118 that includes `PyYAML` (normal `pip wheel`
+  of the sdist; without libyaml it produces the pure `py3-none-any` wheel)
+  and `anyio` + `sniffio` + `idna` (upstream ships them only in the `mcp`
+  extra, but `graphify.serve` imports anyio unguarded, so `query`/`path`/
+  `explain` fail without them).
 
 ## 4. Upstream version bumps (porting checklist)
 
-1. Fetch the new `requires_dist` (PyPI JSON) and diff the grammar ranges
-   against `scripts/resolve_versions.py` `DEPS` — update pins that moved.
+1. Fetch the new `requires_dist` (PyPI JSON) and diff it against the current
+   pins: grammar ranges vs `scripts/resolve_versions.py` `DEPS`, and any new
+   non-extra runtime dependency (0.9.118 added `pyyaml>=6.0`) — add it to
+   `scripts/grammar_manifest.txt` and to the `pip wheel` branch of
+   `scripts/build_wheels.sh`.
 2. Download the new sdist; dry-run the CLI-backends patch. Any `FAILED`
    hunk: read the `.rej`, find the drifted function in the new source, and
    hand-adapt the hunk preserving behavior (tuple returns, priority order:
@@ -73,8 +82,12 @@ with zero on-device compiling. Single branch (`main`). Upstream port lineage:
    venv** on-device (grammar test + real `extract` on a sample repo), then
    publish the release.
 
-Currently pinned: graphifyy **0.9.92** (+termux1), tree-sitter core **0.26.0**,
-rapidfuzz **3.14.5**, 25 grammars per `scripts/grammar_manifest.txt`.
+Currently pinned: graphifyy **0.9.118** (+termux1), tree-sitter core **0.26.0**,
+rapidfuzz **3.14.5**, 25 grammars per `scripts/grammar_manifest.txt`, plus the
+pure-python runtime wheels PyYAML **6.0.4**, anyio **4.15.1**, sniffio
+**1.3.1**, idna **3.20** (PyYAML is a new required dep in 0.9.118; anyio +
+its deps are only an upstream extra, but `query`/`path`/`explain` import
+`graphify.serve`, which imports anyio unguarded).
 
 ## 5. Release flow
 

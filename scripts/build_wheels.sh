@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # =============================================================================
 # Construye wheels para Termux/Android (bionic aarch64) de:
-#   tree-sitter core + grammars + rapidfuzz  (ver grammar_manifest.txt)
+#   tree-sitter core + grammars + rapidfuzz + pyyaml  (ver grammar_manifest.txt)
 #
 # Corre DENTRO del contenedor termux/termux-docker:latest (uid 1000), con el
 # checkout montado en /workspace. NO corre en el dispositivo.
@@ -80,7 +80,7 @@ if [ ! -f "$TS_RUNTIME_ALLOC" ]; then
   sed -i 's|#include "alloc.h"|#include "tree_sitter/alloc.h"|' "$TS_RUNTIME_ALLOC"
 fi
 
-echo "== [5/6] build (core/rapidfuzz: pip wheel | grammars: .so + shim) =="
+echo "== [5/6] build (core/rapidfuzz/pyyaml: pip wheel | grammars: .so + shim) =="
 rm -rf "$BUILD_DIR"/* "$SDIST_DIR"/*
 # los headers ya extraidos en [4/6] no se tocan (estan en $TS_HEADERS)
 
@@ -93,10 +93,17 @@ while IFS= read -r spec; do
   ver="${spec##*==}"
   mod="${pkg//-/_}"
 
-  # --- core y rapidfuzz: wheels normales de pip (compilan bien) ---
-  if [ "$pkg" = "tree-sitter" ] || [ "$pkg" = "rapidfuzz" ]; then
+  # --- deps normales: wheels de pip (compilados o puros) ---
+  # tree-sitter/rapidfuzz compilan; pyyaml/anyio/sniffio/idna son puros.
+  PIP_PKGS=" tree-sitter rapidfuzz pyyaml anyio sniffio idna "
+  case "$PIP_PKGS" in *" $pkg "*)
     echo "--- build: $spec (pip wheel) ---"
-    if python -m pip wheel --no-deps --no-binary :all: "$spec" -w "$WHEELS" --progress-bar off >"$LOG" 2>&1; then
+    build_env=()
+    # PyYAML: forzar wheel puro (py3-none-any). Si el build encuentra un libyaml
+    # incompleto deja un wheel platform-tagged SIN el .so y no es portable
+    # entre dispositivos, asi que siempre se desactiva el binding C.
+    if [ "$pkg" = "pyyaml" ]; then build_env=(PYYAML_FORCE_LIBYAML=0); fi
+    if env "${build_env[@]}" python -m pip wheel --no-deps --no-binary :all: "$spec" -w "$WHEELS" --progress-bar off >"$LOG" 2>&1; then
       echo "OK  build: $spec"
     else
       echo "FAIL build: $spec"
@@ -104,7 +111,8 @@ while IFS= read -r spec; do
       tail -25 "$LOG" >> "$FAILED/build-failed.txt"
     fi
     continue
-  fi
+    ;;
+  esac
 
   # --- grammars: sdist -> .so -> wheel shim ---
   echo "--- build: $spec (shim .so) ---"
@@ -291,7 +299,7 @@ fi
 echo
 echo "== [7/7] graphifyy+termux wheel (sdist + CLI-backends patch) =="
 # GRAPHIFY_VERSION must match scripts/patches-termux-cli-backends.patch.
-GF_VER="${GRAPHIFY_VERSION:-0.9.92}"
+GF_VER="${GRAPHIFY_VERSION:-0.9.118}"
 GF_SRC="$BUILD_DIR/graphifyy-$GF_VER"
 rm -rf "$GF_SRC"
 mkdir -p "$SDIST_DIR"

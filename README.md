@@ -51,7 +51,8 @@ graphify explain "session manager"
 
 ## What's inside a release
 
-- `tree-sitter` core + `rapidfuzz` (compiled normally)
+- `tree-sitter` core + `rapidfuzz` + `PyYAML` (compiled / pure-python)
+- `anyio`, `sniffio`, `idna` — pure-python, needed by `query`/`path`/`explain`
 - 25 grammar shims exposing exactly the API graphify expects
 - `graphifyy+termux1` wheel (upstream + local-CLI backends patch)
 - Every wheel runtime-tested (import → `Language()` ABI check → snippet parse)
