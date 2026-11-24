@@ -52,8 +52,24 @@ def wheel_module(whl_name: str) -> str:
     return whl_name.split("-")[0]
 
 
+# Deps puros Python que viajan en el mismo wheel set pero no son grammars.
+# dist name -> import name (PyYAML se importa como `yaml`).
+PURE_MODULES = {
+    "pyyaml": "yaml",
+    "anyio": "anyio",
+    "sniffio": "sniffio",
+    "idna": "idna",
+}
+
+
 def test_module(modname: str) -> str:
     """Devuelve None si OK, o el mensaje de error."""
+    if modname in PURE_MODULES:
+        mod = importlib.import_module(PURE_MODULES[modname])
+        if modname == "pyyaml":
+            # graphify usa safe_load para YAML estructural (#2214)
+            assert mod.safe_load("a: 1") == {"a": 1}
+        return None
     if modname == "graphifyy":
         # distribution name != import name: the package imports as `graphify`
         importlib.import_module("graphify")
