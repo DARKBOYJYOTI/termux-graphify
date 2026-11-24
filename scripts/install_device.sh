@@ -8,8 +8,9 @@
 #   bash install_device.sh --local DIR     # local wheels (test before release)
 #   REPO=user/repo bash install_device.sh
 #
-# Requirements: python (3.14, native numpy/networkx via python-numpy),
-#               gh CLI logged in (or curl + python).
+# Requirements: python (3.14, native numpy via python-numpy), networkx
+#               (auto: python-networkx via pkg, else pip), gh CLI logged in
+#               (or curl + python).
 # =============================================================================
 set -euo pipefail
 
@@ -60,6 +61,19 @@ echo "== [2/5] creating venv (--system-site-packages: native numpy/networkx) =="
 PYBIN="$(command -v python || command -v python3)" || { echo "no python found; pkg install python"; exit 1; }
 if [ ! -d "$VENV" ]; then
   "$PYBIN" -m venv "$VENV" --system-site-packages
+fi
+
+# networkx: graphify lo necesita en runtime (update/query). El venv hereda el
+# del sistema (python-networkx); si falta, instalar el paquete pkg y, si no
+# existe, pip al venv (networkx es puro Python).
+if ! "$VENV/bin/python" -c "import networkx" >/dev/null 2>&1; then
+  echo "  networkx missing; trying pkg install python-networkx"
+  yes | pkg install -y python-networkx >/dev/null 2>&1 || true
+  if ! "$VENV/bin/python" -c "import networkx" >/dev/null 2>&1; then
+    echo "  pkg package unavailable; installing networkx via pip (pure Python)"
+    "$VENV/bin/pip" install --disable-pip-version-check "networkx>=3.4" \
+      || { echo "ERROR: networkx is required (pkg install python-networkx)"; exit 1; }
+  fi
 fi
 
 echo "== [3/5] installing wheels + graphifyy =="
