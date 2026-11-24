@@ -79,13 +79,17 @@ if [ -n "$LOCAL_DIR" ]; then
     echo "  using local wheels: $LOCAL_DIR"
     WHEEL_DIR="$LOCAL_DIR"
 else
+    # Wheels de un release anterior en el mismo dir: gh falla si los archivos
+    # existen, y si la descarga se salta archivos viejos el install mezcla
+    # versiones. Limpiar antes de bajar (solo aqui; --local no se toca).
+    rm -f "$WHEEL_DIR"/*.whl
     if command -v gh >/dev/null 2>&1; then
         echo "  downloading via gh CLI (repo=$REPO tag=${TAG:-latest})"
         if [ -n "$TAG" ]; then
-            gh release download --repo "$REPO" --pattern '*.whl' --dir "$WHEEL_DIR" "$TAG" \
+            gh release download --repo "$REPO" --pattern '*.whl' --dir "$WHEEL_DIR" --clobber "$TAG" \
                 || GH_FALLBACK=1
         else
-            gh release download --repo "$REPO" --pattern '*.whl' --dir "$WHEEL_DIR" \
+            gh release download --repo "$REPO" --pattern '*.whl' --dir "$WHEEL_DIR" --clobber \
                 || GH_FALLBACK=1
         fi
         # gh may exist but fail (no auth, network, etc.) — fall back to the API
@@ -105,14 +109,17 @@ else
         curl -fsSL "$RELEASE_URL" | python3 -c '
 import json, sys, urllib.request
 d = json.load(sys.stdin)
-urls = [a["browser_download_url"] for a in d.get("assets", []) if a["name"].endswith(".whl")]
-if not urls:
+assets = [a for a in d.get("assets", []) if a["name"].endswith(".whl")]
+if not assets:
     print("ERROR: release has no wheels", file=sys.stderr); sys.exit(1)
-print("\n".join(urls))
+for a in assets:
+    print(a["name"] + "\t" + a["browser_download_url"])
 ' > "$WHEEL_DIR/urls.txt" || { echo "ERROR: could not list release assets"; exit 1; }
-        while IFS= read -r url; do
+        # Nombre del asset explicito: la URL trae %2B (el "+" de +termux1) y
+        # curl -O guardaria el archivo URL-encoded, que pip rechaza.
+        while IFS="$(printf '\t')" read -r name url; do
             [ -n "$url" ] || continue
-            curl -fsSL --output-dir "$WHEEL_DIR" -O "$url" || {
+            curl -fsSL -o "$WHEEL_DIR/$name" "$url" || {
                 echo "ERROR: failed downloading $url"; exit 1; }
         done < "$WHEEL_DIR/urls.txt"
         rm -f "$WHEEL_DIR/urls.txt"

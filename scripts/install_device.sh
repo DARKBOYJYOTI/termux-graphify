@@ -28,10 +28,22 @@ fi
 echo "== [1/5] fetching wheels =="
 mkdir -p "$WHEEL_DIR"
 if [ "$MODE" = "github" ]; then
+  # Borrar wheels viejos: si el directorio ya tenia un release anterior, gh
+  # falla (archivos existentes) o el install mezcla versiones viejas/nuevas.
+  # Solo en modo github; con --local el directorio es del usuario.
+  rm -f "$WHEEL_DIR"/*.whl
+  WANT_API=0
   if command -v gh >/dev/null 2>&1; then
-    gh release download --repo "$REPO" --pattern '*.whl' --dir "$WHEEL_DIR" \
-      || { echo "gh release download failed (release published? try --local)"; exit 1; }
+    if ! gh release download --repo "$REPO" --pattern '*.whl' --dir "$WHEEL_DIR" --clobber; then
+      # gh puede fallar con token vencido o sin auth; la API publica no.
+      echo "  gh download failed; retrying via the public API"
+      WANT_API=1
+      rm -f "$WHEEL_DIR"/*.whl
+    fi
   else
+    WANT_API=1
+  fi
+  if [ "$WANT_API" = "1" ]; then
     # fallback without gh: GitHub API + python (Termux always has python).
     # Pure-bash tag extraction: piping curl into `grep -m1` lets grep close
     # the pipe early and kills curl with SIGPIPE — never do that here.
@@ -42,18 +54,23 @@ if [ "$MODE" = "github" ]; then
     [ -n "$LATEST" ] || { echo "could not resolve the latest release of $REPO"; exit 1; }
     _assets_json="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/tags/$LATEST")" \
       || { echo "could not list release assets"; exit 1; }
-    _urls="$(printf '%s' "$_assets_json" | python3 -c 'import json,sys; [print(a["browser_download_url"]) for a in json.load(sys.stdin).get("assets",[]) if a["name"].endswith(".whl")]')"
-    [ -n "$_urls" ] || { echo "release has no wheels"; exit 1; }
-    while IFS= read -r asset; do
+    _assets="$(printf '%s' "$_assets_json" | python3 -c 'import json,sys
+for a in json.load(sys.stdin).get("assets", []):
+    if a["name"].endswith(".whl"):
+        print(a["name"] + "\t" + a["browser_download_url"])')" || true
+    [ -n "$_assets" ] || { echo "release has no wheels"; exit 1; }
+    # Nombre del asset explicito: la URL trae %2B (el "+" de +termux1) y
+    # curl -O guardaria el archivo URL-encoded, que pip rechaza.
+    while IFS="$(printf '\t')" read -r name asset; do
       [ -n "$asset" ] || continue
-      curl -fsSL --output-dir "$WHEEL_DIR" -O "$asset" < /dev/null || {
+      curl -fsSL -o "$WHEEL_DIR/$name" "$asset" < /dev/null || {
         echo "failed downloading $asset"; exit 1; }
     done <<EOF
-$_urls
+$_assets
 EOF
   fi
 fi
-N_WHEELS="$(ls "$WHEEL_DIR"/*.whl 2>/dev/null | wc -l)"
+N_WHEELS="$(find "$WHEEL_DIR" -maxdepth 1 -name '*.whl' 2>/dev/null | wc -l)"
 [ "$N_WHEELS" -gt 0 ] || { echo "no wheels in $WHEEL_DIR"; exit 1; }
 echo "downloaded wheels: $N_WHEELS"
 
@@ -76,8 +93,21 @@ if ! "$VENV/bin/python" -c "import networkx" >/dev/null 2>&1; then
   fi
 fi
 
+# numpy: graphify lo importa y en Termux no hay wheel de PyPI usable para
+# bionic aarch64. Solo via pkg python-numpy (nunca pip install numpy).
+if ! "$VENV/bin/python" -c "import numpy" >/dev/null 2>&1; then
+  echo "  numpy missing; trying pkg install python-numpy"
+  yes | pkg install -y python-numpy >/dev/null 2>&1 || true
+  if ! "$VENV/bin/python" -c "import numpy" >/dev/null 2>&1; then
+    echo "ERROR: numpy is required and cannot be pip-installed on Termux."
+    echo "       run: pkg install python-numpy"
+    exit 1
+  fi
+fi
+
 echo "== [3/5] installing wheels + graphifyy =="
-"$VENV/bin/pip" install --upgrade pip >/dev/null
+"$VENV/bin/pip" install --upgrade pip >/dev/null 2>&1 \
+  || echo "  WARN: pip upgrade skipped (offline or index unavailable)"
 "$VENV/bin/pip" install --no-deps --no-index --find-links "$WHEEL_DIR" "$WHEEL_DIR"/*.whl
 # graphifyy: prefer the patched (+termux) wheel from the release when present;
 # fall back to PyPI with --no-deps (system numpy/networkx + our installed

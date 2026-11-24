@@ -134,6 +134,8 @@ On-device acceptance for every release (isolated test venv — never the live
 | Install finds no release | No published tag yet | Use `--local`, or publish via CI first |
 | Skill bootstrap tries building grammars from source | Upstream skill prefers `uv tool run`, and uv cannot build Android grammar sdists; triggers only when uv exists but `graphify` is not on PATH | Keep `~/.local/bin` on PATH (standard install does); the working venv is `~/graphify-venv` — verify with `<venv>/bin/python -c "import graphify"` |
 | Patch hunk FAILED on bump | Upstream refactored the patched function | Hand-adapt per section 4; never force-apply |
+| `ModuleNotFoundError: networkx` after install | runtime dep assumed, not checked | fixed: installers import-check networkx → `pkg` → `pip` fallback |
+| Reinstall fails with `already exists` or an old `graphifyy` version | stale wheels left in `~/graphify-wheels` | fixed: github mode clears the dir first, `gh --clobber`, asset names taken from the API (not the `%2B` URL) |
 | sdist missing headers | Incomplete sdist (e.g. no `common/scanner.h`) | Build from the GitHub tarball per section 3 |
 
 ## 9. Anti-patterns (do not do these)
